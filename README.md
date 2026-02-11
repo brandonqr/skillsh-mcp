@@ -11,14 +11,67 @@ MCP (Model Context Protocol) server for searching and managing AI agent skills f
 
 ## Installation
 
-1. Build the server:
+### 1. Build the server
+
 ```bash
-cd mcp-skills-sh
+cd skillsh-mcp
 npm install
 npm run build
 ```
 
-2. The server is automatically configured in `.cursor/mcp.json`
+### 2. Configure your client
+
+#### For Claude Code
+
+**Option A: Using `claude mcp add` (recommended)**
+
+```bash
+claude mcp add skills-sh --scope user -- node /absolute/path/to/skillsh-mcp/dist/index.js
+```
+
+Scopes available:
+- `--scope local` (default) — Available only to you in the current project
+- `--scope project` — Shared via `.mcp.json` in the project root (committed to git)
+- `--scope user` — Available globally across all your projects
+
+**Option B: Using `.mcp.json` file**
+
+Create or edit `.mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "skills-sh": {
+      "command": "node",
+      "args": ["/absolute/path/to/skillsh-mcp/dist/index.js"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Option C: Using `claude mcp add-json`**
+
+```bash
+claude mcp add-json skills-sh '{"command":"node","args":["/absolute/path/to/skillsh-mcp/dist/index.js"]}'
+```
+
+#### For Cursor
+
+Add to `.cursor/mcp.json` in your workspace:
+
+```json
+{
+  "mcpServers": {
+    "skills-sh": {
+      "command": "node",
+      "args": ["${workspaceFolder}/skillsh-mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+Then restart Cursor.
 
 ## Usage
 
@@ -58,17 +111,10 @@ npm run build
 npm run dev
 ```
 
-## Configuration
+## Compatibility
 
-The server is configured in `.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "skills-sh": {
-      "command": "node",
-      "args": ["${workspaceFolder}/mcp-skills-sh/dist/index.js"]
-    }
-  }
-}
-```
+| Client | Transport | Status |
+|---|---|---|
+| Claude Code | stdio | ✅ Supported |
+| Cursor | stdio | ✅ Supported |
+| Claude Desktop | stdio | ✅ Supported |
