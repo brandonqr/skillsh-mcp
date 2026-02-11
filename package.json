@@ -10,7 +10,9 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "setup:claude": "npm run build && echo 'Run: claude mcp add skills-sh -- node '$(pwd)'/dist/index.js'",
+    "setup:cursor": "npm run build && echo 'Add to .cursor/mcp.json: {\"mcpServers\":{\"skills-sh\":{\"command\":\"node\",\"args\":[\"'$(pwd)'/dist/index.js\"]}}}'"
   },
   "keywords": [
     "mcp",
