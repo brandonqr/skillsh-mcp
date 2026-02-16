@@ -102,20 +102,63 @@ Muéstrame las 10 skills más populares
 - `limit` (opcional): Número de resultados (por defecto: 20)
 - `timeframe` (opcional): "all", "trending", o "hot" (por defecto: "all")
 
+**Ejemplo de salida:**
+```
+Top 10 All Time Skills (699 unique skills found):
+
+1. **vercel-react-best-practices**
+   - Source: `vercel-labs/agent-skills`
+   - Installs: 138,015
+   - Install: `npx skills add vercel-labs/agent-skills`
+
+2. **web-design-guidelines**
+   - Source: `vercel-labs/agent-skills`
+   - Installs: 104,242
+   - Install: `npx skills add vercel-labs/agent-skills`
+
+...
+```
+
 ---
 
 ### 3. `get_skill_details`
-Obtiene información detallada sobre una skill específica.
+Obtiene información detallada sobre una skill específica, incluyendo installs totales, desglose por plataforma y fecha de primera publicación.
 
 **Ejemplo de uso:**
 ```
-Dame detalles de la skill mapbox/mapbox-agent-skills/mapbox-integration-patterns
+Dame detalles de la skill vercel-labs/skills/find-skills
 ```
 
 **Parámetros:**
 - `owner` (requerido): Usuario/organización de GitHub
 - `repo` (requerido): Nombre del repositorio
 - `skillId` (requerido): ID de la skill
+
+**Ejemplo de salida:**
+```
+## find-skills
+
+**Source:** `vercel-labs/skills`
+- Total Installs: 242,358
+- First Seen: Jan 26, 2026
+
+**Links:**
+- skills.sh: https://skills.sh/vercel-labs/skills/find-skills
+- GitHub: https://github.com/vercel-labs/skills
+
+**Install Command:**
+```bash
+npx skills add vercel-labs/skills
+```
+
+**Installs by Platform:**
+- opencode: 214.8K
+- codex: 210.5K
+- gemini-cli: 200.0K
+- github-copilot: 196.8K
+- amp: 190.0K
+- kimi-cli: 173.4K
+```
 
 ---
 
@@ -150,6 +193,11 @@ Busca skills de React usando search_skills
 Muéstrame las 20 skills más populares usando get_popular_skills
 ```
 
+### Obtener detalles de una skill
+```
+Dame detalles de la skill vercel-labs/skills/find-skills usando get_skill_details
+```
+
 ### Obtener comando de instalación
 ```
 Dame el comando para instalar vercel-labs/agent-skills
@@ -163,6 +211,19 @@ Dame el comando para instalar vercel-labs/agent-skills
 - En **Cursor**: el servidor se conecta automáticamente cuando Cursor se inicia (requiere reinicio tras configurar)
 - Las herramientas están disponibles en el chat de ambos clientes
 - No necesitas ejecutar comandos manualmente, solo describe lo que necesitas
+
+---
+
+## Changelog
+
+### v1.1.0 - Mejoras recientes
+
+- **`get_popular_skills`**: Ahora encuentra 699+ skills únicas usando búsquedas optimizadas con múltiples términos
+- **`get_skill_details`**: Ahora incluye información detallada real:
+  - Total de installs desde la API
+  - Desglose de installs por plataforma (opencode, codex, gemini-cli, etc.)
+  - Fecha de primera publicación (First Seen)
+  - Links directos a skills.sh y GitHub
 
 ---
 
