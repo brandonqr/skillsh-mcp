@@ -4,6 +4,8 @@ Este servidor MCP permite buscar y gestionar skills de [skills.sh](https://skill
 
 ## Configuración
 
+> **Nota importante**: El archivo `.mcp.json` debe ubicarse en la **raíz de tu proyecto** (donde vas a usar las skills), no dentro de la carpeta `skillsh-mcp`. Asegúrate de ejecutar los comandos desde el directorio correcto.
+
 ### Para Claude Code
 
 **Opción 1: Comando `claude mcp add` (recomendado)**
@@ -13,6 +15,7 @@ Este servidor MCP permite buscar y gestionar skills de [skills.sh](https://skill
 claude mcp add skills-sh -- node /ruta/absoluta/a/skillsh-mcp/dist/index.js
 
 # Scope proyecto (compartido con el equipo via .mcp.json)
+# Ejecutar desde la raíz de tu proyecto, no desde skillsh-mcp/
 claude mcp add skills-sh --scope project -- node /ruta/absoluta/a/skillsh-mcp/dist/index.js
 
 # Scope usuario (disponible en todos tus proyectos)
