@@ -230,37 +230,150 @@ class SkillsShServer {
     skillId: string;
   }): Promise<{ content: Array<{ type: string; text: string }> }> {
     const { owner, repo, skillId } = args;
-    const url = `https://skills.sh/${owner}/${repo}/${skillId}`;
+    const skillUrl = `https://skills.sh/${owner}/${repo}/${skillId}`;
+    const githubUrl = `https://github.com/${owner}/${repo}`;
 
-    // Note: skills.sh doesn't have a public API for skill details
-    // This returns the URL and install command
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Skill Details:\n` +
-            `- Owner: ${owner}\n` +
-            `- Repo: ${repo}\n` +
-            `- Skill ID: ${skillId}\n` +
-            `- URL: ${url}\n` +
-            `- Install: \`npx skills add ${owner}/${repo}\``,
+    try {
+      // First, try to get basic info from search API
+      const searchUrl = `${this.API_BASE}/search?q=${encodeURIComponent(skillId)}&limit=50`;
+      const searchResponse = await fetch(searchUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'MCP-Skills-Sh/1.0.0',
         },
-      ],
-    };
+      });
+
+      let basicInfo: Skill | null = null;
+      if (searchResponse.ok) {
+        const searchData: SearchResponse = await searchResponse.json();
+        // Find exact match or closest match
+        basicInfo = searchData.skills.find(
+          (s) => s.skillId === skillId && s.source === `${owner}/${repo}`
+        ) || searchData.skills.find(
+          (s) => s.skillId === skillId
+        ) || null;
+      }
+
+      // Then, scrape the skill detail page for additional info
+      const pageResponse = await fetch(skillUrl, {
+        headers: {
+          'Accept': 'text/html',
+          'User-Agent': 'MCP-Skills-Sh/1.0.0',
+        },
+      });
+
+      let weeklyInstalls: string | null = null;
+      let platformInstalls: Array<{ platform: string; count: string }> = [];
+      let firstSeen: string | null = null;
+
+      if (pageResponse.ok) {
+        const html = await pageResponse.text();
+
+        // Extract weekly installs (format: XXX.XK)
+        const weeklyMatch = html.match(/(\d{2,3}\.\dK)\s*<[^>]*>\s*Weekly\s+installs/i) ||
+                           html.match(/(\d{2,3}\.\dK)[^\d]*installs/i);
+        if (weeklyMatch) {
+          weeklyInstalls = weeklyMatch[1];
+        }
+
+        // Extract platform installs (opencode, codex, gemini-cli, etc.)
+        // Pattern: platform</span><span...>XX.XK</span>
+        const platformMatches = html.matchAll(/<span[^>]*>([\w-]+)<\/span>\s*<span[^>]*>(\d{2,3}\.\dK)<\/span>/gi);
+        for (const match of platformMatches) {
+          const platform = match[1].toLowerCase();
+          const count = match[2];
+          // Filter for known platforms and avoid duplicates
+          if (['opencode', 'codex', 'gemini', 'copilot', 'amp', 'kimi', 'cursor', 'claude', 'windsurf', 'github-copilot', 'gemini-cli', 'kimi-cli'].some(p => platform.includes(p))) {
+            if (!platformInstalls.some(p => p.platform === platform)) {
+              platformInstalls.push({ platform, count });
+            }
+          }
+        }
+
+        // Extract first seen date - looking for pattern like: <span>First Seen</span>...</div><div...>Jan 26, 2026</div>
+        const firstSeenMatch = html.match(/First\s+Seen<\/span><\/div><div[^>]*>([A-Za-z]{3}\s+\d{1,2},?\s*\d{4})/i) ||
+                               html.match(/First\s+Seen[\s\S]*?<div[^>]*>([A-Za-z]{3}\s+\d{1,2},?\s*\d{4})<\/div>/i);
+        if (firstSeenMatch) {
+          firstSeen = firstSeenMatch[1];
+        }
+      }
+
+      // Build response
+      const installs = basicInfo?.installs;
+      const installsText = installs ? installs.toLocaleString('en-US') : 'N/A';
+
+      let platformsText = '';
+      if (platformInstalls.length > 0) {
+        platformsText = '\n\n**Installs by Platform:**\n' +
+          platformInstalls.map(p => `- ${p.platform}: ${p.count}`).join('\n');
+      }
+
+      const weeklyText = weeklyInstalls ? `\n- Weekly Installs: ${weeklyInstalls}` : '';
+      const firstSeenText = firstSeen ? `\n- First Seen: ${firstSeen}` : '';
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `## ${skillId}\n\n` +
+              `**Source:** \`${owner}/${repo}\`\n` +
+              `- Total Installs: ${installsText}${weeklyText}${firstSeenText}\n\n` +
+              `**Links:**\n` +
+              `- skills.sh: ${skillUrl}\n` +
+              `- GitHub: ${githubUrl}\n\n` +
+              `**Install Command:**\n` +
+              '\`\`\`bash\n' +
+              `npx skills add ${owner}/${repo}\n` +
+              '\`\`\`' +
+              platformsText,
+          },
+        ],
+      };
+    } catch (error) {
+      // Fallback to basic info if scraping fails
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `## ${skillId}\n\n` +
+              `**Source:** \`${owner}/${repo}\`\n\n` +
+              `**Links:**\n` +
+              `- skills.sh: ${skillUrl}\n` +
+              `- GitHub: https://github.com/${owner}/${repo}\n\n` +
+              `**Install Command:**\n` +
+              '\`\`\`bash\n' +
+              `npx skills add ${owner}/${repo}\n` +
+              '\`\`\`\n\n' +
+              `(Error fetching additional details: ${error instanceof Error ? error.message : String(error)})`,
+          },
+        ],
+      };
+    }
   }
 
   private async getPopularSkills(args: {
     limit?: number;
     timeframe?: string;
   }): Promise<{ content: Array<{ type: string; text: string }> }> {
-    // Note: The API endpoint for leaderboard might be different
-    // For now, we'll search for common terms to get popular skills
-    const popularQueries = ['react', 'typescript', 'next', 'vue', 'python'];
+    const { limit = 20, timeframe = 'all' } = args;
+
+    // Note: skills.sh doesn't have a public API for leaderboard
+    // We use multiple search queries with common 2-char terms to get diverse results
+    // This gives us a good approximation of popular skills
+    const searchTerms = [
+      'js', 'ts', 'py', 'go', 'rb',  // Languages
+      're', 'vu', 'nx', 'ex', 'dx',  // Frameworks
+      'ai', 'ml', 'db', 'api', 'ui', // Concepts
+      'co', 'de', 'te', 'se', 'cl',  // Common prefixes
+    ];
+
     const allSkills: Skill[] = [];
+    const seen = new Set<string>();
 
     try {
-      for (const query of popularQueries) {
-        const url = `${this.API_BASE}/search?q=${encodeURIComponent(query)}&limit=10`;
+      // Search with multiple terms to get diverse results
+      for (const term of searchTerms) {
+        const url = `${this.API_BASE}/search?q=${encodeURIComponent(term)}&limit=50`;
         const response = await fetch(url, {
           headers: {
             'Accept': 'application/json',
@@ -270,17 +383,32 @@ class SkillsShServer {
 
         if (response.ok) {
           const data: SearchResponse = await response.json();
-          allSkills.push(...data.skills);
+          for (const skill of data.skills) {
+            // Avoid duplicates
+            if (!seen.has(skill.id)) {
+              seen.add(skill.id);
+              allSkills.push(skill);
+            }
+          }
         }
       }
 
-      // Remove duplicates and sort by installs
-      const uniqueSkills = Array.from(
-        new Map(allSkills.map((skill) => [skill.id, skill])).values()
-      ).sort((a, b) => b.installs - a.installs);
+      if (allSkills.length === 0) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `No skills found for timeframe: "${timeframe}"`,
+            },
+          ],
+        };
+      }
 
-      const limit = args.limit || 20;
-      const topSkills = uniqueSkills.slice(0, limit);
+      // Sort by installs (descending) and take top N
+      const sortedSkills = allSkills.sort((a, b) => b.installs - a.installs);
+      const topSkills = sortedSkills.slice(0, limit);
+
+      const timeframeLabel = timeframe === 'all' ? 'All Time' : timeframe === 'trending' ? 'Trending (24h)' : 'Hot';
 
       const skillsList = topSkills
         .map(
@@ -296,7 +424,7 @@ class SkillsShServer {
         content: [
           {
             type: 'text',
-            text: `Top ${limit} Popular Skills:\n\n${skillsList}`,
+            text: `Top ${limit} ${timeframeLabel} Skills (${allSkills.length} unique skills found):\n\n${skillsList}`,
           },
         ],
       };
